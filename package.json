@@ -1,0 +1,14 @@
+{
+  "name": "remote-eink",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Colin Nolan",
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "swagger-client": "^3.10.6"
+  }
+}

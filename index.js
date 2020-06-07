@@ -1,5 +1,12 @@
 import SwaggerClient from "swagger-client";
 
+class Upload {
+    constructor(promise, abort) {
+        this.promise = promise;
+        this.abort = abort;
+    }
+}
+
 class XRecord {
     constructor(swaggerClient) {
         this._swaggerClient = swaggerClient;
@@ -86,6 +93,37 @@ class XImageCollectionRecord extends XRecord {
 
     async getData() {
         return await this.list().then(async images => await Promise.all(images.map(async image => image.getData())));
+    }
+
+    add(identifier, imageFile, onProgress) {
+        const request = new XMLHttpRequest();
+        // FIXME: get from swagger
+        request.open("POST", `${process.env.REACT_APP_API_URL}/display/msf/image/${identifier}`);
+
+        if(onProgress) {
+            request.upload.onprogress = onProgress;
+        }
+
+        const promise = new Promise((resolve, reject) => {
+            request.onload = function() {
+                if (request.status >= 200 && request.status < 300) {
+                    resolve(identifier);
+                }
+                else {
+                    reject(request.status, request.responseText);
+                }
+            };
+            request.send(imageFile);
+        });
+
+        return new Upload(promise, request.abort);
+    }
+
+    async delete(identifier) {
+        const request = new XMLHttpRequest();
+        request.open("DELETE", `${process.env.REACT_APP_API_URL}/display/msf/image/${identifier}`);
+        request.send();
+        // FIXME: promise
     }
 }
 

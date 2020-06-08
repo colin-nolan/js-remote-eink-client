@@ -60,11 +60,27 @@ class XDisplayRecord extends XRecord {
     }
 
     async getCurrentImage() {
-        const response = await this._request();
-        if(!response.currentImage) {
-            return null;
-        }
-        return new XImageRecord(this._swagger_client, this.id, response.currentImage.id);
+        return new Promise((resolve, reject) => {
+            this._swaggerClient.apis.default.getDisplayCurrentImage({"displayId": this.id})
+                .then((response) => {
+                    resolve(response.body.id);
+                })
+                .catch((error) => {
+                    if(error.statusCode === 404) {
+                        resolve(null);
+                    }
+                    reject(error);
+                });
+        });
+    }
+
+    async setCurrentImage(identifier) {
+        // TODO: use swagger
+        // this._swaggerClient.apis.default.putDisplayCurrentImage({"displayId": this.id, "id": identifier});
+        const request = new XMLHttpRequest();
+        request.open("PUT", `${process.env.REACT_APP_API_URL}/display/msf/current-image`);
+        request.setRequestHeader("Content-Type", "application/json");
+        request.send(JSON.stringify({"id": identifier}));
     }
 
     _request() {
@@ -121,6 +137,7 @@ class XImageCollectionRecord extends XRecord {
 
     async delete(identifier) {
         const request = new XMLHttpRequest();
+        // TODO: use swagger
         request.open("DELETE", `${process.env.REACT_APP_API_URL}/display/msf/image/${identifier}`);
         request.send();
         // FIXME: promise

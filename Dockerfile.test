@@ -1,0 +1,9 @@
+FROM node
+
+WORKDIR /usr/local/src/client
+
+COPY package.json yarn.lock .
+
+RUN yarn install
+
+CMD ["yarn", "test"]

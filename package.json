@@ -4,11 +4,32 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "author": "Colin Nolan",
   "license": "GPL-3.0-or-later",
   "dependencies": {
-    "swagger-client": "^3.10.6"
+    "swagger-client": "^3.18.5"
+  },
+  "devDependencies": {
+    "@babel/preset-env": "^7.16.8",
+    "@babel/preset-typescript": "^7.16.7",
+    "@stoplight/prism-cli": "^4.6.1",
+    "@stoplight/prism-core": "^4.6.1",
+    "@stoplight/prism-http-server": "^4.6.1",
+    "jest": "^27.5.1",
+    "jest-extended": "^1.2.0",
+    "portfinder": "^1.0.28",
+    "prettier": "2.5.1"
+  },
+  "jest": {
+    "collectCoverage": true,
+    "coveragePathIgnorePatterns": [
+      "<rootDir>/tests"
+    ],
+    "setupFilesAfterEnv": [
+      "jest-extended/all"
+    ],
+    "testEnvironment": "jsdom"
   }
 }

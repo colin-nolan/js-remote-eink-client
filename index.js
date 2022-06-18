@@ -7,17 +7,51 @@ class Upload {
     }
 }
 
-class XRecord {
+function handleUnexpectedServerResponse(response) {
+    throw new Error(`Operation failed: ${response}`);
+}
+
+function handleResponse(response, success, notFound, other) {
+    if (success === undefined) {
+        success = () => {};
+    }
+    if (notFound === undefined) {
+        notFound = handleUnexpectedServerResponse;
+    }
+    if (other === undefined) {
+        other = handleUnexpectedServerResponse;
+    }
+    switch (response.status) {
+        case 200:
+            return success(response);
+        case 404:
+            return notFound(response);
+        default:
+            return other(response);
+    }
+}
+
+export class XRecord {
     constructor(swaggerClient) {
+        if (!(swaggerClient instanceof SwaggerClient)) {
+            throw new TypeError(`Incorrect SwaggerClient type: ${typeof swaggerClient}`);
+        }
+        // TODO: look if this could be a real protected
         this._swaggerClient = swaggerClient;
     }
 }
 
-
-class XImageRecord extends XRecord {
-    get display() {
-        return new XDisplayRecord(swaggerClient, this.displayId);
+export class XImageRecordData {
+    constructor(id, url) {
+        this.id = id;
+        this.url = url;
     }
+}
+
+export class XImageRecord extends XRecord {
+    // get display() {
+    //     return new XDisplayRecord(this._swaggerClient, this.displayId);
+    // }
 
     constructor(swaggerClient, displayId, imageId) {
         super(swaggerClient);
@@ -26,22 +60,26 @@ class XImageRecord extends XRecord {
     }
 
     async getData() {
-        return {
-            "id": this.id,
-            // XXX: This is a very heavyweight way of finding the URL, as swagger certainly knows how to calculate it
-            ///     without issuing any requests!
-            "url": (await this._request()).url
-        };
-    }
-
-    _request() {
-        return this._swaggerClient.apis.default.getDisplayImageById({"displayId": this.displayId, "imageId": this.id});
+        // XXX: This is a very heavyweight way of finding the URL, as swagger certainly knows how to calculate it
+        ///     without issuing any requests!
+        const response = this._swaggerClient.apis.default.getDisplayImageById({
+            displayId: this.displayId,
+            imageId: this.id,
+        });
+        return handleResponse(response, (_) => new XImageRecordData(this.id, response.url));
     }
 }
 
+// export class XDisplayRecordData {
+//     constructor(id, currentImage, images) {
+//         this.id = id;
+//         this.currentImage = currentImage;
+//         this.images = images;
+//     }
+// }
 
-class XDisplayRecord extends XRecord {
-    get image() {
+export class XDisplayRecord extends XRecord {
+    get images() {
         return new XImageCollectionRecord(this._swaggerClient, this.id);
     }
 
@@ -50,135 +88,149 @@ class XDisplayRecord extends XRecord {
         this.id = displayId;
     }
 
-    async getData() {
-        const response = await this._request();
-        return {
-            "id": this.id,
-            "currentImage": response.body.currentImage ? response.body.currentImage.id : null,
-            "images": response.body.images.map(x => x.id)
-        };
-    }
-
     async getCurrentImage() {
-        return new Promise((resolve, reject) => {
-            this._swaggerClient.apis.default.getDisplayCurrentImage({"displayId": this.id})
-                .then((response) => {
-                    resolve(response.body.id);
-                })
-                .catch((error) => {
-                    if(error.statusCode === 404) {
-                        resolve(null);
-                    }
-                    reject(error);
-                });
-        });
+        const response = await this._swaggerClient.apis.default.getDisplayCurrentImage({displayId: this.id});
+        return handleResponse(
+            response,
+            (response) => new XImageRecord(this._swaggerClient, this.id, response.body.id),
+            (_) => null
+        );
     }
 
-    async setCurrentImage(identifier) {
-        // TODO: use swagger
-        // this._swaggerClient.apis.default.putDisplayCurrentImage({"displayId": this.id, "id": identifier});
-        const request = new XMLHttpRequest();
-        request.open("PUT", `${process.env.REACT_APP_API_URL}/display/msf/current-image`);
-        request.setRequestHeader("Content-Type", "application/json");
-        request.send(JSON.stringify({"id": identifier}));
+    async setCurrentImage(identifierOrImage) {
+        const identifier = identifierOrImage instanceof XImageRecord ? identifierOrImage.id : identifierOrImage;
+        const response = await this._swaggerClient.apis.default.getDisplayImages({displayId: this.id, id: identifier});
+        handleResponse(response);
     }
 
-    _request() {
-        return this._swaggerClient.apis.default.getDisplayById({"displayId": this.id});
+    async clearCurrentImage() {
+        const response = await this._swaggerClient.apis.default.deleteDisplayCurrentImage({displayId: this.id});
+        return handleResponse(response, (_) => {});
     }
 }
 
-
-class XImageCollectionRecord extends XRecord {
+export class XImageCollectionRecord extends XRecord {
     constructor(swaggerClient, displayId) {
         super(swaggerClient);
-        this.displayId = displayId;
+        this.id = displayId;
     }
 
-    async getById(id) {
-        // Check if the image exists (TODO: better handle exception)
-        const response = await this._swaggerClient.apis.default.getDisplayImageById(
-            {"displayId": this.displayId, "imageId": id});
-        return new XImageRecord(this._swaggerClient, this.displayId, id);
-    }
+    // FIXME: needs server-side support!
+    // async getById(id) {
+    //     const response = await this._swaggerClient.apis.default.getDisplayImage({
+    //         displayId: this.displayId,
+    //         imageId: id,
+    //     });
+    //     return handleResponse(
+    //         response,
+    //         (_) => new XImageRecord(this._swaggerClient, this.displayId, id),
+    //         (_) => null
+    //     );
+    // }
 
     async list() {
-        const response = await this._swaggerClient.apis.default.getDisplayImages({"displayId": this.displayId});
-        return response.body.map(x =>new XImageRecord(this._swaggerClient, this.displayId, x.id));
+        const response = await this._swaggerClient.apis.default.getDisplayImages({displayId: this.id});
+        return handleResponse(response, (response) =>
+            response.body.map((x) => new XImageRecord(this._swaggerClient, this.id, x.id))
+        );
     }
 
-    async getData() {
-        return await this.list().then(async images => await Promise.all(images.map(async image => image.getData())));
+    async add(imageFile, onProgress) {
+        // const dataFile = new File([imageFile], 'file1.txt', {
+        //   type: 'image/png',
+        // });
+
+
+        const response = await this._swaggerClient.apis.default.postDisplayImage(
+            {
+                displayId: this.id,
+            },
+            {
+                requestBody: {
+                    data: imageFile,
+                    metadata: {rotate: 90},     // FIXME
+                },
+                // requestContentType: "image/png",
+                requestInterceptor: (x) => {
+                    console.log(x);
+                    return x;
+                },
+            }
+        );
+        return handleResponse(response, (_) => {});
+
+        // const request = new XMLHttpRequest();
+        // // FIXME: get from swagger
+        // request.open("POST", `${process.env.REACT_APP_API_URL}/display/msf/image/${identifier}`);
+        //
+        // if (onProgress) {
+        //     request.upload.onprogress = onProgress;
+        // }
+        //
+        // const promise = new Promise((resolve, reject) => {
+        //     request.onload = function () {
+        //         if (request.status >= 200 && request.status < 300) {
+        //             resolve(identifier);
+        //         } else {
+        //             reject(request.status, request.responseText);
+        //         }
+        //     };
+        //     request.send(imageFile);
+        // });
+        //
+        // return new Upload(promise, request.abort);
     }
 
-    add(identifier, imageFile, onProgress) {
-        const request = new XMLHttpRequest();
-        // FIXME: get from swagger
-        request.open("POST", `${process.env.REACT_APP_API_URL}/display/msf/image/${identifier}`);
-
-        if(onProgress) {
-            request.upload.onprogress = onProgress;
-        }
-
-        const promise = new Promise((resolve, reject) => {
-            request.onload = function() {
-                if (request.status >= 200 && request.status < 300) {
-                    resolve(identifier);
-                }
-                else {
-                    reject(request.status, request.responseText);
-                }
-            };
-            request.send(imageFile);
+    async delete(imageOrIdentifier) {
+        const imageIdentifier = imageOrIdentifier instanceof XImageRecord ? imageOrIdentifier.id : imageOrIdentifier;
+        const response = await this._swaggerClient.apis.default.deleteDisplayImageById({
+            displayId: this.id,
+            imageId: imageIdentifier,
         });
-
-        return new Upload(promise, request.abort);
-    }
-
-    async delete(identifier) {
-        const request = new XMLHttpRequest();
-        // TODO: use swagger
-        request.open("DELETE", `${process.env.REACT_APP_API_URL}/display/msf/image/${identifier}`);
-        request.send();
-        // FIXME: promise
+        return handleResponse(response, (_) => {});
     }
 }
 
-
-class XDisplayCollectionRecord extends XRecord {
+export class XDisplayCollectionRecord extends XRecord {
     async getById(id) {
-        // Check if the image exists
-        const response = await this._swaggerClient.apis.default.getDisplayById({"displayId": id});
-        return new XDisplayRecord(this._swaggerClient, response.body.id);
+        const response = await this._swaggerClient.apis.default.getDisplayById({displayId: id});
+        return handleResponse(response, (_) => new XDisplayRecord(this._swaggerClient, id));
     }
 
     async list() {
         const response = await this._swaggerClient.apis.default.getDisplays();
-        return response.body.map(x =>new XDisplayRecord(this._swaggerClient, x.id));
+        return handleResponse(response, (response) =>
+            response.body.map((x) => new XDisplayRecord(this._swaggerClient, x.id))
+        );
     }
 
-    async getData() {
-        return await this.list()
-            .then(async displays => await Promise.all(displays.map(async display => display.getData())));
-    }
+    // async getData() {
+    //     return await this.list()
+    //         .then(async displays => await Promise.all(displays.map(async display => display.getData())));
+    // }
 }
 
-
-class X extends XRecord {
+export class X extends XRecord {
     get display() {
         return new XDisplayCollectionRecord(this._swaggerClient);
     }
 
-    async getData() {
-        return await this.display.getData();
-    }
+    // async getData() {
+    //     return await this.display.getData();
+    // }
 }
 
+export async function createX(swaggerUrl, baseUrl) {
+    const client = await createClient(swaggerUrl, baseUrl);
+    return createXWithClient(client);
+}
 
-async function buildX(url) {
-    const client = await new SwaggerClient(`${url}/openapi.json`);
+export async function createXWithClient(client) {
     return new X(client);
 }
 
-
-export {buildX};
+export async function createClient(swaggerUrl, baseUrl) {
+    const client = await new SwaggerClient(swaggerUrl);
+    client.url = baseUrl;
+    return client;
+}

@@ -136,6 +136,11 @@ export class XImageCollectionRecord extends XRecord {
     }
 
     async add(imageFile, onProgress) {
+        // const dataFile = new File([imageFile], 'file1.txt', {
+        //   type: 'image/png',
+        // });
+
+
         const response = await this._swaggerClient.apis.default.postDisplayImage(
             {
                 displayId: this.id,
@@ -143,9 +148,9 @@ export class XImageCollectionRecord extends XRecord {
             {
                 requestBody: {
                     data: imageFile,
-                    metadata: {rotate: 90},
+                    metadata: {rotate: 90},     // FIXME
                 },
-                // requestContentType: "multipart/form-data",
+                // requestContentType: "image/png",
                 requestInterceptor: (x) => {
                     console.log(x);
                     return x;

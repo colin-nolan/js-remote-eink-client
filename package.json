@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "test-style": "prettier --check \"**/*.js\"",
+    "style": "prettier --write \"**/*.js\""
   },
   "author": "Colin Nolan",
   "license": "GPL-3.0-or-later",

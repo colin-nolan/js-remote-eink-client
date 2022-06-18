@@ -140,7 +140,6 @@ export class XImageCollectionRecord extends XRecord {
         //   type: 'image/png',
         // });
 
-
         const response = await this._swaggerClient.apis.default.postDisplayImage(
             {
                 displayId: this.id,
@@ -148,7 +147,7 @@ export class XImageCollectionRecord extends XRecord {
             {
                 requestBody: {
                     data: imageFile,
-                    metadata: {rotate: 90},     // FIXME
+                    metadata: {rotate: 90}, // FIXME
                 },
                 // requestContentType: "image/png",
                 requestInterceptor: (x) => {

@@ -1,7 +1,6 @@
 import {createClient, createXWithClient, XDisplayRecord, XImageCollectionRecord, XImageRecord} from "../index";
 import {createMockServer} from "./helper";
-import { TextEncoder, TextDecoder } from 'util'
-
+import {TextEncoder, TextDecoder} from "util";
 
 const OPEN_API_URL = "https://raw.githubusercontent.com/colin-nolan/remote-eink/main/openapi.yml";
 
@@ -83,8 +82,8 @@ describe("Image collection", () => {
 
     // The encoder does not correctly encode File objects (it results in "[object File]") so disabled test
     test.skip("can add image", async () => {
-        global.TextEncoder = TextEncoder
-        global.TextDecoder = TextDecoder
+        // global.TextEncoder = TextEncoder
+        // global.TextDecoder = TextDecoder
 
         const request = new Request(
             // TODO: Use controlled image file location
@@ -92,8 +91,8 @@ describe("Image collection", () => {
         );
         const response = await fetch(request);
         const arrayBuffer = await response.arrayBuffer();
-        const imageFile = new File([arrayBuffer], 'file1.txt', {
-          type: 'image/jpg',
+        const imageFile = new File([arrayBuffer], "file1.txt", {
+            type: "image/jpg",
         });
         await exampleImageCollection.add(imageFile, () => {});
     });

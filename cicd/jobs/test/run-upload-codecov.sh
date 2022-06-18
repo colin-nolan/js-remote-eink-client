@@ -16,5 +16,5 @@ if [[ "${RUN_TESTS}" -eq 1 ]]; then
 fi
 
 docker run -e CODECOV_TOKEN -u $(id -u):$(id -g) -w "${repository_root_directory}" --rm \
-    -v "${repository_root_directory}":"${repository_root_directory}" tester \
+    -v "${repository_root_directory}":"${repository_root_directory}" -e CODECOV_TOKEN tester \
     scripts/test/run-upload-codecov.sh

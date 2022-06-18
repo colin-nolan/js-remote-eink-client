@@ -8,6 +8,6 @@ repository_root_directory="$(cd "${script_directory}" && git rev-parse --show-to
 pushd "${repository_root_directory}" > /dev/null
 
 yarn
-yarn test
+yarn test --ci --coverage
 
 popd > /dev/null

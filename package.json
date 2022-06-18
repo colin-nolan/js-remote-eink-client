@@ -12,8 +12,8 @@
     "swagger-client": "^3.18.5"
   },
   "devDependencies": {
-    "@babel/preset-env": "^7.16.8",
-    "@babel/preset-typescript": "^7.16.7",
+    "@babel/preset-env": "^7.18.2",
+    "@babel/preset-typescript": "^7.17.12",
     "@stoplight/prism-cli": "^4.10.0",
     "@stoplight/prism-core": "^4.10.0",
     "@stoplight/prism-http-server": "^4.10.0",
@@ -22,7 +22,7 @@
     "jest-environment-jsdom": "^28.1.1",
     "jest-extended": "^2.0.0",
     "portfinder": "^1.0.28",
-    "prettier": "2.5.1"
+    "prettier": "^2.7.1"
   },
   "jest": {
     "collectCoverage": true,

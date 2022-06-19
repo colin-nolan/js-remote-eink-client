@@ -14,8 +14,10 @@ function handleResponse(response, success, notFound, other) {
     if (other === undefined) {
         other = handleUnexpectedServerResponse;
     }
+
     switch (response.status) {
         case 200:
+        case 201:
             return success(response);
         case 404:
             return notFound(response);
@@ -264,7 +266,7 @@ export class ImageCollectionRecord extends Record {
         );
     }
 
-    // PUT /display/{displayId}/image/{imageId}
+    // POST /display/{displayId}/image
     async add(imageFile, metadata = {}) {
         const response = await this._swaggerClient.apis.default.postDisplayImage(
             {
@@ -277,7 +279,7 @@ export class ImageCollectionRecord extends Record {
                 },
             }
         );
-        return handleResponse(response, (_) => {});
+        return handleResponse(response, () => response.body.id);
     }
 
     // DELETE /display/{displayId}/image/{imageId}

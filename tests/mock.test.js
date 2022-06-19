@@ -1,11 +1,12 @@
 import {
+    createSwaggerClient,
+    DisplayRecord,
+    ImageCollectionRecord,
+    ImageTransformerRecord,
+    ImageRecord,
+    ImageTransformerCollectionRecord,
     createClient,
-    createXWithClient,
-    DisplayXRecord,
-    ImageCollectionXRecord,
-    ImageTransformerXRecord,
-    ImageXRecord,
-    ImageTransformerCollectionXRecord,
+    createClientWithSwaggerClient,
 } from "../index";
 import {createMockServer} from "./helper";
 
@@ -25,16 +26,16 @@ let server,
 
 beforeAll(async () => {
     server = await createMockServer(OPEN_API_URL);
-    swaggerClient = await createClient(OPEN_API_URL, server.url);
+    swaggerClient = await createSwaggerClient(OPEN_API_URL, server.url);
     // For testing against a real server
-    // swaggerClient = await createClient("http://127.0.0.1:8080/openapi.json", "http://127.0.0.1:8080");
-    client = await createXWithClient(swaggerClient);
+    // swaggerClient = await createSwaggerClient("http://127.0.0.1:8080/openapi.json", "http://127.0.0.1:8080");
+    client = await createClientWithSwaggerClient(swaggerClient);
 
-    exampleDisplay = new DisplayXRecord(swaggerClient, "123");
-    exampleImageCollection = new ImageCollectionXRecord(swaggerClient, "123");
-    exampleImage = new ImageXRecord(swaggerClient, "123", "black");
-    exampleImageTransformerCollection = new ImageTransformerCollectionXRecord(swaggerClient, "123", "456");
-    exampleImageTransformer = new ImageTransformerXRecord(swaggerClient, "123", "456");
+    exampleDisplay = new DisplayRecord(swaggerClient, "123");
+    exampleImageCollection = new ImageCollectionRecord(swaggerClient, "123");
+    exampleImage = new ImageRecord(swaggerClient, "123", "black");
+    exampleImageTransformerCollection = new ImageTransformerCollectionRecord(swaggerClient, "123", "456");
+    exampleImageTransformer = new ImageTransformerRecord(swaggerClient, "123", "456");
 });
 
 afterAll(() => {
@@ -44,29 +45,29 @@ afterAll(() => {
 describe("Client", () => {
     test("can list displays", async () => {
         const displayList = await client.display.list();
-        expect(displayList[0]).toBeInstanceOf(DisplayXRecord);
+        expect(displayList[0]).toBeInstanceOf(DisplayRecord);
     });
 
     test("can get display by ID", async () => {
         const display = await client.display.get("123");
-        expect(display).toBeInstanceOf(DisplayXRecord);
+        expect(display).toBeInstanceOf(DisplayRecord);
     });
 });
 
 describe("Display", () => {
     test("has images property", async () => {
         const images = await exampleDisplay.images;
-        expect(images).toBeInstanceOf(ImageCollectionXRecord);
+        expect(images).toBeInstanceOf(ImageCollectionRecord);
     });
 
     test("has image transformers property", async () => {
         const imageTransformers = await exampleDisplay.imageTransformers;
-        expect(imageTransformers).toBeInstanceOf(ImageTransformerCollectionXRecord);
+        expect(imageTransformers).toBeInstanceOf(ImageTransformerCollectionRecord);
     });
 
     test("has current image", async () => {
         const currentImage = await exampleDisplay.getCurrentImage();
-        expect(currentImage).toBeInstanceOf(ImageXRecord);
+        expect(currentImage).toBeInstanceOf(ImageRecord);
     });
 
     describe("can set current image", () => {
@@ -145,13 +146,13 @@ describe("Image collection", () => {
     // Prism "Cannot find serializer for multipart/form-data"
     test.skip("can get image by ID", async () => {
         const image = await exampleImageCollection.get("123");
-        expect(image).toBeInstanceOf(ImageXRecord);
+        expect(image).toBeInstanceOf(ImageRecord);
     });
 
     test("can list images", async () => {
         const images = await exampleImageCollection.list();
         expect(images).toBeArray();
-        expect(images).toSatisfyAll((record) => record instanceof ImageXRecord);
+        expect(images).toSatisfyAll((record) => record instanceof ImageRecord);
     });
 
     describe("can delete image", () => {
@@ -186,11 +187,11 @@ describe("Image transformer collection", () => {
     test("can list image transformers", async () => {
         const transformers = await exampleImageTransformerCollection.list();
         expect(transformers).toBeArray();
-        expect(transformers).toSatisfyAll((record) => record instanceof ImageTransformerXRecord);
+        expect(transformers).toSatisfyAll((record) => record instanceof ImageTransformerRecord);
     });
 
     test("can get image transformer by ID", async () => {
         const image = await exampleImageTransformerCollection.get("123");
-        expect(image).toBeInstanceOf(ImageTransformerXRecord);
+        expect(image).toBeInstanceOf(ImageTransformerRecord);
     });
 });

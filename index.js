@@ -24,7 +24,7 @@ function handleResponse(response, success, notFound, other) {
     }
 }
 
-export class XRecord {
+export class Record {
     constructor(swaggerClient) {
         if (!(swaggerClient instanceof SwaggerClient)) {
             throw new TypeError(`Incorrect SwaggerClient type: ${typeof swaggerClient}`);
@@ -33,21 +33,21 @@ export class XRecord {
     }
 }
 
-// Display container
-export class X extends XRecord {
+// Client (base record)
+export class ClientRecord extends Record {
     get display() {
-        return new DisplayCollectionXRecord(this._swaggerClient);
+        return new DisplayCollectionRecord(this._swaggerClient);
     }
 }
 
 // Display
-export class DisplayXRecord extends XRecord {
+export class DisplayRecord extends Record {
     get images() {
-        return new ImageCollectionXRecord(this._swaggerClient, this.displayId);
+        return new ImageCollectionRecord(this._swaggerClient, this.displayId);
     }
 
     get imageTransformers() {
-        return new ImageTransformerCollectionXRecord(this._swaggerClient, this.displayId);
+        return new ImageTransformerCollectionRecord(this._swaggerClient, this.displayId);
     }
 
     constructor(swaggerClient, displayId) {
@@ -60,14 +60,14 @@ export class DisplayXRecord extends XRecord {
         const response = await this._swaggerClient.apis.default.getDisplayCurrentImage({displayId: this.displayId});
         return handleResponse(
             response,
-            (response) => new ImageXRecord(this._swaggerClient, this.displayId, response.body.id),
+            (response) => new ImageRecord(this._swaggerClient, this.displayId, response.body.id),
             (_) => null
         );
     }
 
     // PUT /display/{displayId}/current-image
     async setCurrentImage(identifierOrImage) {
-        const identifier = identifierOrImage instanceof ImageXRecord ? identifierOrImage.imageId : identifierOrImage;
+        const identifier = identifierOrImage instanceof ImageRecord ? identifierOrImage.imageId : identifierOrImage;
         const response = await this._swaggerClient.apis.default.getDisplayImages({
             displayId: this.displayId,
             id: identifier,
@@ -114,7 +114,7 @@ export class DisplayXRecord extends XRecord {
 }
 
 // Image on display
-export class ImageXRecord extends XRecord {
+export class ImageRecord extends Record {
     constructor(swaggerClient, displayId, imageId) {
         super(swaggerClient);
         this.imageId = imageId;
@@ -184,7 +184,7 @@ export class ImageXRecord extends XRecord {
 }
 
 // Image transformer
-export class ImageTransformerXRecord extends XRecord {
+export class ImageTransformerRecord extends Record {
     constructor(swaggerClient, displayId, imageTransformerId) {
         super(swaggerClient);
         this.imageTransformerId = imageTransformerId;
@@ -216,24 +216,24 @@ export class ImageTransformerXRecord extends XRecord {
 }
 
 // Displays
-export class DisplayCollectionXRecord extends XRecord {
+export class DisplayCollectionRecord extends Record {
     // GET /display
     async list() {
         const response = await this._swaggerClient.apis.default.getDisplays();
         return handleResponse(response, (response) =>
-            response.body.map((x) => new DisplayXRecord(this._swaggerClient, x.id))
+            response.body.map((x) => new DisplayRecord(this._swaggerClient, x.id))
         );
     }
 
     // GET /display/{displayId}
     async get(id) {
         const response = await this._swaggerClient.apis.default.getDisplay({displayId: id});
-        return handleResponse(response, (_) => new DisplayXRecord(this._swaggerClient, id));
+        return handleResponse(response, (_) => new DisplayRecord(this._swaggerClient, id));
     }
 }
 
 // Images on display
-export class ImageCollectionXRecord extends XRecord {
+export class ImageCollectionRecord extends Record {
     constructor(swaggerClient, displayId) {
         super(swaggerClient);
         this.displayId = displayId;
@@ -243,7 +243,7 @@ export class ImageCollectionXRecord extends XRecord {
     async list() {
         const response = await this._swaggerClient.apis.default.getDisplayImages({displayId: this.displayId});
         return handleResponse(response, (response) =>
-            response.body.map((x) => new ImageXRecord(this._swaggerClient, this.displayId, x.id))
+            response.body.map((x) => new ImageRecord(this._swaggerClient, this.displayId, x.id))
         );
     }
 
@@ -255,7 +255,7 @@ export class ImageCollectionXRecord extends XRecord {
         });
         return handleResponse(
             response,
-            (_) => new ImageXRecord(this._swaggerClient, this.displayId, id),
+            (_) => new ImageRecord(this._swaggerClient, this.displayId, id),
             (_) => null
         );
     }
@@ -279,7 +279,7 @@ export class ImageCollectionXRecord extends XRecord {
     // DELETE /display/{displayId}/image/{imageId}
     async delete(imageOrIdentifier) {
         const imageIdentifier =
-            imageOrIdentifier instanceof ImageXRecord ? imageOrIdentifier.imageId : imageOrIdentifier;
+            imageOrIdentifier instanceof ImageRecord ? imageOrIdentifier.imageId : imageOrIdentifier;
         const response = await this._swaggerClient.apis.default.deleteDisplayImage({
             displayId: this.displayId,
             imageId: imageIdentifier,
@@ -289,7 +289,7 @@ export class ImageCollectionXRecord extends XRecord {
 }
 
 // Images on display
-export class ImageTransformerCollectionXRecord extends XRecord {
+export class ImageTransformerCollectionRecord extends Record {
     constructor(swaggerClient, displayId) {
         super(swaggerClient);
         this.displayId = displayId;
@@ -301,7 +301,7 @@ export class ImageTransformerCollectionXRecord extends XRecord {
             displayId: this.displayId,
         });
         return handleResponse(response, (response) =>
-            response.body.map((x) => new ImageTransformerXRecord(this._swaggerClient, this.displayId, x.id))
+            response.body.map((x) => new ImageTransformerRecord(this._swaggerClient, this.displayId, x.id))
         );
     }
 
@@ -313,22 +313,22 @@ export class ImageTransformerCollectionXRecord extends XRecord {
         });
         return handleResponse(
             response,
-            (_) => new ImageTransformerXRecord(this._swaggerClient, this.displayId, id),
+            (_) => new ImageTransformerRecord(this._swaggerClient, this.displayId, id),
             (_) => null
         );
     }
 }
 
-export async function createX(swaggerUrl, baseUrl) {
-    const client = await createClient(swaggerUrl, baseUrl);
-    return createXWithClient(client);
-}
-
-export async function createXWithClient(client) {
-    return new X(client);
-}
-
 export async function createClient(swaggerUrl, baseUrl) {
+    const client = await createSwaggerClient(swaggerUrl, baseUrl);
+    return createClientWithSwaggerClient(client);
+}
+
+export async function createClientWithSwaggerClient(swaggerClient) {
+    return new ClientRecord(swaggerClient);
+}
+
+export async function createSwaggerClient(swaggerUrl, baseUrl) {
     const client = await new SwaggerClient(swaggerUrl);
     client.url = baseUrl;
     return client;

@@ -1,12 +1,5 @@
 import SwaggerClient from "swagger-client";
 
-class Upload {
-    constructor(promise, abort) {
-        this.promise = promise;
-        this.abort = abort;
-    }
-}
-
 function handleUnexpectedServerResponse(response) {
     throw new Error(`Operation failed: ${response}`);
 }
@@ -36,187 +29,294 @@ export class XRecord {
         if (!(swaggerClient instanceof SwaggerClient)) {
             throw new TypeError(`Incorrect SwaggerClient type: ${typeof swaggerClient}`);
         }
-        // TODO: look if this could be a real protected
         this._swaggerClient = swaggerClient;
     }
 }
 
-export class XImageRecordData {
-    constructor(id, url) {
-        this.id = id;
-        this.url = url;
+// Display container
+export class X extends XRecord {
+    get display() {
+        return new DisplayCollectionXRecord(this._swaggerClient);
     }
 }
 
-export class XImageRecord extends XRecord {
-    // get display() {
-    //     return new XDisplayRecord(this._swaggerClient, this.displayId);
-    // }
-
-    constructor(swaggerClient, displayId, imageId) {
-        super(swaggerClient);
-        this.id = imageId;
-        this.displayId = displayId;
-    }
-
-    async getData() {
-        // XXX: This is a very heavyweight way of finding the URL, as swagger certainly knows how to calculate it
-        ///     without issuing any requests!
-        const response = this._swaggerClient.apis.default.getDisplayImageById({
-            displayId: this.displayId,
-            imageId: this.id,
-        });
-        return handleResponse(response, (_) => new XImageRecordData(this.id, response.url));
-    }
-}
-
-// export class XDisplayRecordData {
-//     constructor(id, currentImage, images) {
-//         this.id = id;
-//         this.currentImage = currentImage;
-//         this.images = images;
-//     }
-// }
-
-export class XDisplayRecord extends XRecord {
+// Display
+export class DisplayXRecord extends XRecord {
     get images() {
-        return new XImageCollectionRecord(this._swaggerClient, this.id);
+        return new ImageCollectionXRecord(this._swaggerClient, this.displayId);
+    }
+
+    get imageTransformers() {
+        return new ImageTransformerCollectionXRecord(this._swaggerClient, this.displayId);
     }
 
     constructor(swaggerClient, displayId) {
         super(swaggerClient);
-        this.id = displayId;
+        this.displayId = displayId;
     }
 
+    // GET /display/{displayId}/current-image
     async getCurrentImage() {
-        const response = await this._swaggerClient.apis.default.getDisplayCurrentImage({displayId: this.id});
+        const response = await this._swaggerClient.apis.default.getDisplayCurrentImage({displayId: this.displayId});
         return handleResponse(
             response,
-            (response) => new XImageRecord(this._swaggerClient, this.id, response.body.id),
+            (response) => new ImageXRecord(this._swaggerClient, this.displayId, response.body.id),
             (_) => null
         );
     }
 
+    // PUT /display/{displayId}/current-image
     async setCurrentImage(identifierOrImage) {
-        const identifier = identifierOrImage instanceof XImageRecord ? identifierOrImage.id : identifierOrImage;
-        const response = await this._swaggerClient.apis.default.getDisplayImages({displayId: this.id, id: identifier});
-        handleResponse(response);
+        const identifier = identifierOrImage instanceof ImageXRecord ? identifierOrImage.imageId : identifierOrImage;
+        const response = await this._swaggerClient.apis.default.getDisplayImages({
+            displayId: this.displayId,
+            id: identifier,
+        });
+        return handleResponse(response);
     }
 
+    // DELETE /display/{displayId}/current-image
     async clearCurrentImage() {
-        const response = await this._swaggerClient.apis.default.deleteDisplayCurrentImage({displayId: this.id});
+        const response = await this._swaggerClient.apis.default.deleteDisplayCurrentImage({displayId: this.displayId});
+        return handleResponse(response, (_) => {});
+    }
+
+    // PUT /display/{displayId}/sleep
+    async getSleepStatus() {
+        const response = await this._swaggerClient.apis.default.getDisplaySleep({displayId: this.displayId});
+        return handleResponse(
+            response,
+            (response) => response.body,
+            (_) => null
+        );
+    }
+
+    // PUT /display/{displayId}/sleep
+    async setSleepStatus(status) {
+        const response = await this._swaggerClient.apis.default.putDisplaySleep(
+            {displayId: this.displayId},
+            {
+                requestBody: status,
+            }
+        );
+        return handleResponse(response, (_) => {});
+    }
+
+    // PUT /display/{displayId}/sleep (true)
+    async sleep() {
+        return this.setSleepStatus(true);
+    }
+
+    // PUT /display/{displayId}/sleep (false)
+    async wake() {
+        return this.setSleepStatus(false);
+    }
+}
+
+// Image on display
+export class ImageXRecord extends XRecord {
+    constructor(swaggerClient, displayId, imageId) {
+        super(swaggerClient);
+        this.imageId = imageId;
+        this.displayId = displayId;
+    }
+
+    // GET /display/{displayId}/image/{imageId}/data
+    async getData() {
+        const response = await this._swaggerClient.apis.default.getDisplayImageData({
+            displayId: this.displayId,
+            imageId: this.imageId,
+        });
+        return handleResponse(
+            response,
+            async (data) =>
+                new File([await data.data.arrayBuffer()], response.url, {
+                    type: data.type,
+                })
+        );
+    }
+
+    // PUT /display/{displayId}/image/{imageId}/data
+    async setData(imageFile) {
+        const response = await this._swaggerClient.apis.default.putDisplayImageData(
+            {
+                displayId: this.displayId,
+                imageId: this.imageId,
+            },
+            {
+                requestBody: imageFile,
+                requestInterceptor: (request) => {
+                    // The client really should be able to work out the specific content type but instead uses the
+                    // wildcard type
+                    if (request.headers["Content-Type"] === "image/*" && imageFile.type !== "") {
+                        request.headers["Content-Type"] = imageFile.type;
+                    }
+                    console.log(request);
+                    return request;
+                },
+            }
+        );
+        return handleResponse(response);
+    }
+
+    // GET /display/{displayId}/image/{imageId}/metadata
+    async getMetadata() {
+        const response = await this._swaggerClient.apis.default.getDisplayImageMetadata({
+            displayId: this.displayId,
+            imageId: this.imageId,
+        });
+        return handleResponse(response, (x) => x.body);
+    }
+
+    // PUT /display/{displayId}/image/{imageId}/metadata
+    async setMetadata(metadata) {
+        const response = await this._swaggerClient.apis.default.putDisplayImageMetadata(
+            {
+                displayId: this.displayId,
+                imageId: this.imageId,
+            },
+            {
+                requestBody: metadata,
+            }
+        );
+        return handleResponse(response);
+    }
+}
+
+// Image transformer
+export class ImageTransformerXRecord extends XRecord {
+    constructor(swaggerClient, displayId, imageTransformerId) {
+        super(swaggerClient);
+        this.imageTransformerId = imageTransformerId;
+        this.displayId = displayId;
+    }
+
+    // GET /display/{displayId}/image-transformer/{imageTransformerId}
+    async getDetails() {
+        const response = await this._swaggerClient.apis.default.getDisplayImageTransformer({
+            displayId: this.displayId,
+            imageTransformerId: this.imageTransformerId,
+        });
+        return handleResponse(response, (response) => response.body);
+    }
+
+    // PUT /display/{displayId}/image-transformer/{imageTransformerId}
+    async update(properties) {
+        const response = await this._swaggerClient.apis.default.putDisplayImageTransformer(
+            {
+                displayId: this.displayId,
+                imageTransformerId: this.imageTransformerId,
+            },
+            {
+                requestBody: properties,
+            }
+        );
         return handleResponse(response, (_) => {});
     }
 }
 
-export class XImageCollectionRecord extends XRecord {
-    constructor(swaggerClient, displayId) {
-        super(swaggerClient);
-        this.id = displayId;
-    }
-
-    // FIXME: needs server-side support!
-    // async getById(id) {
-    //     const response = await this._swaggerClient.apis.default.getDisplayImage({
-    //         displayId: this.displayId,
-    //         imageId: id,
-    //     });
-    //     return handleResponse(
-    //         response,
-    //         (_) => new XImageRecord(this._swaggerClient, this.displayId, id),
-    //         (_) => null
-    //     );
-    // }
-
+// Displays
+export class DisplayCollectionXRecord extends XRecord {
+    // GET /display
     async list() {
-        const response = await this._swaggerClient.apis.default.getDisplayImages({displayId: this.id});
+        const response = await this._swaggerClient.apis.default.getDisplays();
         return handleResponse(response, (response) =>
-            response.body.map((x) => new XImageRecord(this._swaggerClient, this.id, x.id))
+            response.body.map((x) => new DisplayXRecord(this._swaggerClient, x.id))
         );
     }
 
-    async add(imageFile, onProgress) {
-        // const dataFile = new File([imageFile], 'file1.txt', {
-        //   type: 'image/png',
-        // });
+    // GET /display/{displayId}
+    async get(id) {
+        const response = await this._swaggerClient.apis.default.getDisplay({displayId: id});
+        return handleResponse(response, (_) => new DisplayXRecord(this._swaggerClient, id));
+    }
+}
 
+// Images on display
+export class ImageCollectionXRecord extends XRecord {
+    constructor(swaggerClient, displayId) {
+        super(swaggerClient);
+        this.displayId = displayId;
+    }
+
+    // GET /display/{displayId}/image
+    async list() {
+        const response = await this._swaggerClient.apis.default.getDisplayImages({displayId: this.displayId});
+        return handleResponse(response, (response) =>
+            response.body.map((x) => new ImageXRecord(this._swaggerClient, this.displayId, x.id))
+        );
+    }
+
+    // GET /display/{displayId}/image/{imageId}
+    async get(id) {
+        const response = await this._swaggerClient.apis.default.getDisplayImage({
+            displayId: this.displayId,
+            imageId: id,
+        });
+        return handleResponse(
+            response,
+            (_) => new ImageXRecord(this._swaggerClient, this.displayId, id),
+            (_) => null
+        );
+    }
+
+    // PUT /display/{displayId}/image/{imageId}
+    async add(imageFile, metadata = {}) {
         const response = await this._swaggerClient.apis.default.postDisplayImage(
             {
-                displayId: this.id,
+                displayId: this.displayId,
             },
             {
                 requestBody: {
                     data: imageFile,
-                    metadata: {rotate: 90}, // FIXME
-                },
-                // requestContentType: "image/png",
-                requestInterceptor: (x) => {
-                    console.log(x);
-                    return x;
+                    metadata: metadata,
                 },
             }
         );
         return handleResponse(response, (_) => {});
-
-        // const request = new XMLHttpRequest();
-        // // FIXME: get from swagger
-        // request.open("POST", `${process.env.REACT_APP_API_URL}/display/msf/image/${identifier}`);
-        //
-        // if (onProgress) {
-        //     request.upload.onprogress = onProgress;
-        // }
-        //
-        // const promise = new Promise((resolve, reject) => {
-        //     request.onload = function () {
-        //         if (request.status >= 200 && request.status < 300) {
-        //             resolve(identifier);
-        //         } else {
-        //             reject(request.status, request.responseText);
-        //         }
-        //     };
-        //     request.send(imageFile);
-        // });
-        //
-        // return new Upload(promise, request.abort);
     }
 
+    // DELETE /display/{displayId}/image/{imageId}
     async delete(imageOrIdentifier) {
-        const imageIdentifier = imageOrIdentifier instanceof XImageRecord ? imageOrIdentifier.id : imageOrIdentifier;
-        const response = await this._swaggerClient.apis.default.deleteDisplayImageById({
-            displayId: this.id,
+        const imageIdentifier =
+            imageOrIdentifier instanceof ImageXRecord ? imageOrIdentifier.imageId : imageOrIdentifier;
+        const response = await this._swaggerClient.apis.default.deleteDisplayImage({
+            displayId: this.displayId,
             imageId: imageIdentifier,
         });
         return handleResponse(response, (_) => {});
     }
 }
 
-export class XDisplayCollectionRecord extends XRecord {
-    async getById(id) {
-        const response = await this._swaggerClient.apis.default.getDisplayById({displayId: id});
-        return handleResponse(response, (_) => new XDisplayRecord(this._swaggerClient, id));
+// Images on display
+export class ImageTransformerCollectionXRecord extends XRecord {
+    constructor(swaggerClient, displayId) {
+        super(swaggerClient);
+        this.displayId = displayId;
     }
 
+    // GET /display/{displayId}/image-transformer
     async list() {
-        const response = await this._swaggerClient.apis.default.getDisplays();
+        const response = await this._swaggerClient.apis.default.getDisplayImageTransformers({
+            displayId: this.displayId,
+        });
         return handleResponse(response, (response) =>
-            response.body.map((x) => new XDisplayRecord(this._swaggerClient, x.id))
+            response.body.map((x) => new ImageTransformerXRecord(this._swaggerClient, this.displayId, x.id))
         );
     }
 
-    // async getData() {
-    //     return await this.list()
-    //         .then(async displays => await Promise.all(displays.map(async display => display.getData())));
-    // }
-}
-
-export class X extends XRecord {
-    get display() {
-        return new XDisplayCollectionRecord(this._swaggerClient);
+    // GET /display/{displayId}/image-transformer/{imageTransformerId}
+    async get(id) {
+        const response = await this._swaggerClient.apis.default.getDisplayImageTransformer({
+            displayId: this.displayId,
+            imageTransformerId: id,
+        });
+        return handleResponse(
+            response,
+            (_) => new ImageTransformerXRecord(this._swaggerClient, this.displayId, id),
+            (_) => null
+        );
     }
-
-    // async getData() {
-    //     return await this.display.getData();
-    // }
 }
 
 export async function createX(swaggerUrl, baseUrl) {

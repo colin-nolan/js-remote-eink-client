@@ -104,6 +104,11 @@ describe("Display", () => {
 });
 
 describe("Image", () => {
+    test("has url", async () => {
+        const url = await exampleImage.url;
+        expect(url).toBeString();
+    });
+
     // Prism fails if asked to create mock data for image/*
     test.skip("has data", async () => {
         const data = await exampleImage.getData();

@@ -115,6 +115,10 @@ export class DisplayRecord extends Record {
 
 // Image on display
 export class ImageRecord extends Record {
+    get url() {
+        return `${this._swaggerClient.url}/display/${this.displayId}/image/${this.imageId}/data`;
+    }
+
     constructor(swaggerClient, displayId, imageId) {
         super(swaggerClient);
         this.imageId = imageId;

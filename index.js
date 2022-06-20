@@ -45,33 +45,33 @@ export class ClientRecord extends Record {
 // Display
 export class DisplayRecord extends Record {
     get images() {
-        return new ImageCollectionRecord(this._swaggerClient, this.displayId);
+        return new ImageCollectionRecord(this._swaggerClient, this.id);
     }
 
     get imageTransformers() {
-        return new ImageTransformerCollectionRecord(this._swaggerClient, this.displayId);
+        return new ImageTransformerCollectionRecord(this._swaggerClient, this.id);
     }
 
     constructor(swaggerClient, displayId) {
         super(swaggerClient);
-        this.displayId = displayId;
+        this.id = displayId;
     }
 
     // GET /display/{displayId}/current-image
     async getCurrentImage() {
-        const response = await this._swaggerClient.apis.default.getDisplayCurrentImage({displayId: this.displayId});
+        const response = await this._swaggerClient.apis.default.getDisplayCurrentImage({displayId: this.id});
         return handleResponse(
             response,
-            (response) => new ImageRecord(this._swaggerClient, this.displayId, response.body.id),
+            (response) => new ImageRecord(this._swaggerClient, this.id, response.body.id),
             (_) => null
         );
     }
 
     // PUT /display/{displayId}/current-image
     async setCurrentImage(identifierOrImage) {
-        const identifier = identifierOrImage instanceof ImageRecord ? identifierOrImage.imageId : identifierOrImage;
+        const identifier = identifierOrImage instanceof ImageRecord ? identifierOrImage.id : identifierOrImage;
         const response = await this._swaggerClient.apis.default.getDisplayImages({
-            displayId: this.displayId,
+            displayId: this.id,
             id: identifier,
         });
         return handleResponse(response);
@@ -79,13 +79,13 @@ export class DisplayRecord extends Record {
 
     // DELETE /display/{displayId}/current-image
     async clearCurrentImage() {
-        const response = await this._swaggerClient.apis.default.deleteDisplayCurrentImage({displayId: this.displayId});
+        const response = await this._swaggerClient.apis.default.deleteDisplayCurrentImage({displayId: this.id});
         return handleResponse(response, (_) => {});
     }
 
     // PUT /display/{displayId}/sleep
     async getSleepStatus() {
-        const response = await this._swaggerClient.apis.default.getDisplaySleep({displayId: this.displayId});
+        const response = await this._swaggerClient.apis.default.getDisplaySleep({displayId: this.id});
         return handleResponse(
             response,
             (response) => response.body,
@@ -96,7 +96,7 @@ export class DisplayRecord extends Record {
     // PUT /display/{displayId}/sleep
     async setSleepStatus(status) {
         const response = await this._swaggerClient.apis.default.putDisplaySleep(
-            {displayId: this.displayId},
+            {displayId: this.id},
             {
                 requestBody: status,
             }
@@ -118,12 +118,12 @@ export class DisplayRecord extends Record {
 // Image on display
 export class ImageRecord extends Record {
     get url() {
-        return `${this._swaggerClient.url}/display/${this.displayId}/image/${this.imageId}/data`;
+        return `${this._swaggerClient.url}/display/${this.displayId}/image/${this.id}/data`;
     }
 
     constructor(swaggerClient, displayId, imageId) {
         super(swaggerClient);
-        this.imageId = imageId;
+        this.id = imageId;
         this.displayId = displayId;
     }
 
@@ -131,7 +131,7 @@ export class ImageRecord extends Record {
     async getData() {
         const response = await this._swaggerClient.apis.default.getDisplayImageData({
             displayId: this.displayId,
-            imageId: this.imageId,
+            imageId: this.id,
         });
         return handleResponse(
             response,
@@ -147,7 +147,7 @@ export class ImageRecord extends Record {
         const response = await this._swaggerClient.apis.default.putDisplayImageData(
             {
                 displayId: this.displayId,
-                imageId: this.imageId,
+                imageId: this.id,
             },
             {
                 requestBody: imageFile,
@@ -169,7 +169,7 @@ export class ImageRecord extends Record {
     async getMetadata() {
         const response = await this._swaggerClient.apis.default.getDisplayImageMetadata({
             displayId: this.displayId,
-            imageId: this.imageId,
+            imageId: this.id,
         });
         return handleResponse(response, (x) => x.body);
     }
@@ -179,7 +179,7 @@ export class ImageRecord extends Record {
         const response = await this._swaggerClient.apis.default.putDisplayImageMetadata(
             {
                 displayId: this.displayId,
-                imageId: this.imageId,
+                imageId: this.id,
             },
             {
                 requestBody: metadata,
@@ -193,7 +193,7 @@ export class ImageRecord extends Record {
 export class ImageTransformerRecord extends Record {
     constructor(swaggerClient, displayId, imageTransformerId) {
         super(swaggerClient);
-        this.imageTransformerId = imageTransformerId;
+        this.id = imageTransformerId;
         this.displayId = displayId;
     }
 
@@ -201,7 +201,7 @@ export class ImageTransformerRecord extends Record {
     async getDetails() {
         const response = await this._swaggerClient.apis.default.getDisplayImageTransformer({
             displayId: this.displayId,
-            imageTransformerId: this.imageTransformerId,
+            imageTransformerId: this.id,
         });
         return handleResponse(response, (response) => response.body);
     }
@@ -211,7 +211,7 @@ export class ImageTransformerRecord extends Record {
         const response = await this._swaggerClient.apis.default.putDisplayImageTransformer(
             {
                 displayId: this.displayId,
-                imageTransformerId: this.imageTransformerId,
+                imageTransformerId: this.id,
             },
             {
                 requestBody: properties,
@@ -279,13 +279,12 @@ export class ImageCollectionRecord extends Record {
                 },
             }
         );
-        return handleResponse(response, () => response.body.id);
+        return handleResponse(response, () => new ImageRecord(this._swaggerClient, this.displayId, response.body.id));
     }
 
     // DELETE /display/{displayId}/image/{imageId}
     async delete(imageOrIdentifier) {
-        const imageIdentifier =
-            imageOrIdentifier instanceof ImageRecord ? imageOrIdentifier.imageId : imageOrIdentifier;
+        const imageIdentifier = imageOrIdentifier instanceof ImageRecord ? imageOrIdentifier.id : imageOrIdentifier;
         const response = await this._swaggerClient.apis.default.deleteDisplayImage({
             displayId: this.displayId,
             imageId: imageIdentifier,

@@ -70,7 +70,7 @@ export class DisplayRecord extends Record {
     // PUT /display/{displayId}/current-image
     async setCurrentImage(identifierOrImage) {
         const identifier = identifierOrImage instanceof ImageRecord ? identifierOrImage.id : identifierOrImage;
-        const response = await this._swaggerClient.apis.default.getDisplayImages({
+        const response = await this._swaggerClient.apis.default.putDisplayCurrentImage({
             displayId: this.id,
             id: identifier,
         });

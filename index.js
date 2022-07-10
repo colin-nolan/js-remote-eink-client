@@ -70,10 +70,14 @@ export class DisplayRecord extends Record {
     // PUT /display/{displayId}/current-image
     async setCurrentImage(identifierOrImage) {
         const identifier = identifierOrImage instanceof ImageRecord ? identifierOrImage.id : identifierOrImage;
-        const response = await this._swaggerClient.apis.default.putDisplayCurrentImage({
-            displayId: this.id,
-            id: identifier,
-        });
+        const response = await this._swaggerClient.apis.default.putDisplayCurrentImage(
+            {
+                displayId: this.id,
+            },
+            {
+                requestBody: {id: identifier},
+            }
+        );
         return handleResponse(response);
     }
 
@@ -125,6 +129,10 @@ export class ImageRecord extends Record {
         super(swaggerClient);
         this.id = imageId;
         this.displayId = displayId;
+    }
+
+    equals(other) {
+        return typeof other === typeof this && other.url === this.url;
     }
 
     // GET /display/{displayId}/image/{imageId}/data

@@ -128,6 +128,18 @@ describe("Image", () => {
     test("set metadata", async () => {
         await exampleImage.setMetadata({rotation: 123});
     });
+
+    test("test equals when equal", async () => {
+        expect(
+            new ImageRecord(swaggerClient, "123", "black").equals(new ImageRecord(swaggerClient, "123", "black"))
+        ).toBeTrue();
+    });
+
+    test("test equals when not equal", async () => {
+        expect(
+            new ImageRecord(swaggerClient, "123", "black").equals(new ImageRecord(swaggerClient, "123", "white"))
+        ).toBeFalse();
+    });
 });
 
 describe("Image Transformer", () => {
